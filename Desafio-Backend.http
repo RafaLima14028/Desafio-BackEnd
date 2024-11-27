@@ -1,6 +1,66 @@
 @Desafio_Backend_HostAddress = http://localhost:5101
 
+###
+
 GET {{Desafio_Backend_HostAddress}}/weatherforecast/
 Accept: application/json
 
 ###
+
+POST {{Desafio_Backend_HostAddress}}/motos
+Content-Type: application/json
+Accept: application/json
+
+###
+
+GET {{Desafio_Backend_HostAddress}}/motos?placa={{placa}}
+Content-Type: application/json
+Accept: application/json
+
+###
+
+PUT {{Desafio_Backend_HostAddress}}/motos/{id}/placa
+Content-Type: application/json
+Accept: application/json
+
+###
+
+GET {{Desafio_Backend_HostAddress}}/motos{placa}
+Content-Type: application/json
+Accept: application/json
+
+###
+
+DELETE {{Desafio_Backend_HostAddress}}/motos/{id}
+Content-Type: application/json
+Accept: application/json
+
+###
+
+POST {{Desafio_Backend_HostAddress}}/entregadores
+Content-Type: application/json
+Accept: application/json
+
+###
+
+POST {{Desafio_Backend_HostAddress}}/entregadores/{id}/cnh
+Content-Type: application/json
+Accept: application/json
+
+###
+
+POST {{Desafio_Backend_HostAddress}}/locacao
+Content-Type: application/json
+Accept: application/json
+
+###
+
+GET {{Desafio_Backend_HostAddress}}/locacao/{id}
+Content-Type: application/json
+Accept: application/json
+
+###
+
+PUT {{Desafio_Backend_HostAddress}}/locacao/{id}/devolucao
+Content-Type: application/json
+Accept: application/json
