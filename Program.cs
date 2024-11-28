@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
 
-using DataAccess.Models.Moto;
-using DataAccess.Models.Entregador;
-using DataAccess.Models.Locacao;
+using Models.Moto;
+using Models.Entregador;
+using Models.Locacao;
+
+using Services.DataBase;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,9 +22,9 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-List<Moto> motoclicletas = [];
-List<Entregador> entregadores = [];
 List<Locacao> locacoes = [];
+
+DataBase db = DataBase.GetInstanceDataBase();
 
 //! MOTOS
 
@@ -32,9 +34,7 @@ app.MapPost("/motos", (Moto moto) =>
         string.IsNullOrEmpty(moto.modelo) || string.IsNullOrEmpty(moto.placa))
         return Results.BadRequest("Dados inválidos");
 
-    // TODO: ADD MOTO TO DB
-
-    motoclicletas.Add(moto);
+    db.PostMotos(moto);
 
     return Results.Created();
 })
@@ -45,15 +45,9 @@ app.MapGet("/motos", (string placa) =>
     if (string.IsNullOrEmpty(placa))
         return Results.BadRequest("Dados inválidos");
 
-    // TODO: GET DB'S MOTORCYCLE
+    var lista_motos = db.GetMotos(placa);
 
-    List<Moto> listaMotos = new List<Moto>();
-
-    foreach (var moto in motoclicletas)
-        if (moto.placa == placa)
-            listaMotos.Add(moto);
-
-    return Results.Ok(listaMotos);
+    return Results.Ok(lista_motos);
 })
 .WithName("GetMotos");
 
@@ -62,12 +56,7 @@ app.MapPut("/motos/{id}/placa", (string id, MotoUpdate moto) =>
     if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(moto.placa))
         return Results.BadRequest("Dados inválidos");
 
-    var motoExiste = motoclicletas.FirstOrDefault(m => m.identificador == id);
-
-    if (motoExiste == null)
-        return Results.BadRequest("Dados inválidos");
-
-    motoclicletas[motoclicletas.IndexOf(motoExiste)] = motoExiste with { placa = moto.placa };
+    db.PutMotos(id, moto.placa);
 
     return Results.Ok("Placa modificada com sucesso");
 })
@@ -78,7 +67,7 @@ app.MapGet("/motos/{id}", (string id) =>
     if (string.IsNullOrEmpty(id))
         return Results.BadRequest("Request mal formado");
 
-    var motoExiste = motoclicletas.FirstOrDefault(m => m.identificador == id);
+    var motoExiste = db.GetMotoID(id);
 
     if (motoExiste == null)
         return Results.NotFound("Moto não encontrada");
@@ -92,7 +81,7 @@ app.MapDelete("/motos/{id}", (string id) =>
     if (string.IsNullOrEmpty(id))
         return Results.BadRequest("Dados inválidos");
 
-    int quantidade_removida = motoclicletas.RemoveAll(m => m.identificador == id);
+    db.DeleteMoto(id);
 
     return Results.Ok();
 })
@@ -105,10 +94,10 @@ app.MapPost("/entregadores", (Entregador entregador) =>
     if (string.IsNullOrEmpty(entregador.identificador) || string.IsNullOrEmpty(entregador.nome) ||
         string.IsNullOrEmpty(entregador.cnpj) || string.IsNullOrEmpty(entregador.data_nascimento) ||
         string.IsNullOrEmpty(entregador.numero_cnh) || string.IsNullOrEmpty(entregador.tipo_cnh) ||
-        string.IsNullOrEmpty(entregador.img_cnh))
+        string.IsNullOrEmpty(entregador.imagem_cnh))
         return Results.BadRequest("Dados inválidos");
 
-    entregadores.Add(entregador);
+    db.PostEntregador(entregador);
 
     return Results.Created();
 })
@@ -116,15 +105,10 @@ app.MapPost("/entregadores", (Entregador entregador) =>
 
 app.MapPost("/entregadores/{id}/cnh", (string id, EntregadorUpdate entregador) =>
 {
-    if (string.IsNullOrEmpty(entregador.img_cnh))
+    if (string.IsNullOrEmpty(entregador.imagem_cnh))
         return Results.BadRequest("Dados inválidos");
 
-    var entregadorExiste = entregadores.FirstOrDefault(e => e.identificador == id);
-
-    if (entregadorExiste == null)
-        return Results.BadRequest("Dados inválidos");
-
-    entregadores[entregadores.IndexOf(entregadorExiste)] = entregadorExiste with { img_cnh = entregador.img_cnh };
+    db.PostEntregadorEnviaFotoCNH(id, entregador.imagem_cnh);
 
     return Results.Created();
 })
@@ -134,12 +118,13 @@ app.MapPost("/entregadores/{id}/cnh", (string id, EntregadorUpdate entregador) =
 
 app.MapPost("/locacao", (Locacao locacao) =>
 {
-    if (string.IsNullOrEmpty(locacao.entregador_id) || string.IsNullOrEmpty(locacao.id_moto) ||
+    if (string.IsNullOrEmpty(locacao.entregador_id) || string.IsNullOrEmpty(locacao.moto_id) ||
         string.IsNullOrEmpty(locacao.data_inicio) || string.IsNullOrEmpty(locacao.data_termino) ||
-        string.IsNullOrEmpty(locacao.data_previsao_termino) || locacao.plano > 0)
+        string.IsNullOrEmpty(locacao.data_previsao_termino) || locacao.plano <= 0)
         return Results.BadRequest("Dados inválidos");
 
-    locacoes.Add(locacao);
+    // locacoes.Add(locacao);
+    db.PostLocacao(locacao);
 
     return Results.Created();
 })
@@ -150,29 +135,24 @@ app.MapGet("/locacao/{id}", (string id) =>
     if (string.IsNullOrEmpty(id))
         return Results.BadRequest("Dados inválidos");
 
-    var locacaoExiste = locacoes.FirstOrDefault(l => l.id_moto == id);
+    var locacaoExiste = db.GetLocacao(id);
 
     if (locacaoExiste == null)
         return Results.NotFound("Locação não encontrada");
 
     return Results.Ok(locacaoExiste);
 })
-.WithName("PostLocacao");
+.WithName("GetLocacao");
 
 app.MapPut("/locacao/{id}/devolucao", (string id, LocacaoDevolucao locacaoDevolucao) =>
 {
     if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(locacaoDevolucao.data_devolucao))
         return Results.BadRequest("Dados inválidos");
 
-    var locacaoExiste = locacoes.FirstOrDefault(l => l.id_moto == id);
-
-    if (locacaoExiste == null)
-        return Results.BadRequest("Dados inválidos");
-
-    locacoes[locacoes.IndexOf(locacaoExiste)] = locacaoExiste with { data_devolucao = locacaoDevolucao.data_devolucao };
+    db.PutLocacao(id, locacaoDevolucao.data_devolucao);
 
     return Results.Ok("Data de devolução informada com sucesso");
 })
-.WithName("PostLocacao");
+.WithName("PutLocacao");
 
 app.Run();
