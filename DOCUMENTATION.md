@@ -2,7 +2,7 @@
 
 <h2>Implemented Features:</h2>
 
-- [ ] POST /motos
+- [x] POST /motos
 - [ ] GET /motos
 - [ ] PUT /motos
 - [ ] Database

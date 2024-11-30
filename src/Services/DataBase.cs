@@ -189,7 +189,7 @@ namespace Services.DataBase
             return true;
         }
 
-        public Moto? GetMotoID(string id)
+        public Moto? GetMotosID(string id)
         {
             try
             {
