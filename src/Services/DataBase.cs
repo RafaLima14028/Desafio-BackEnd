@@ -263,7 +263,6 @@ namespace Services.DataBase
             return true;
         }
 
-        // TODO: CORRIGIR AQUI (PEGAR PELO IDENTIFICADOR)
         public Moto? GetMotosID(string id)
         {
             try

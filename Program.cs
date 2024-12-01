@@ -41,7 +41,7 @@ class Program
         {
             if (string.IsNullOrEmpty(moto.identificador) || moto.ano <= 0 ||
                 string.IsNullOrEmpty(moto.modelo) || string.IsNullOrEmpty(moto.placa))
-                return Results.BadRequest("Dados inválidos");
+                return Results.BadRequest(new { mensagem = "Dados inválidos" });
 
             _ = publisher.PublisherPostMotos(moto);
 
@@ -52,7 +52,7 @@ class Program
         app.MapGet("/motos", async (string placa) =>
        {
            if (string.IsNullOrEmpty(placa))
-               return Results.BadRequest("Dados inválidos");
+               return Results.BadRequest(new { mensagem = "Dados inválidos" });
 
            var lista_motos = await publisher.PublisherGetMotos(placa);
 
@@ -66,23 +66,23 @@ class Program
         app.MapPut("/motos/{id}/placa", (string id, MotoUpdate moto) =>
         {
             if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(moto.placa))
-                return Results.BadRequest("Dados inválidos");
+                return Results.BadRequest(new { mensagem = "Dados inválidos" });
 
             _ = publisher.PublisherPutMotos(id, moto.placa);
 
-            return Results.Ok("Placa modificada com sucesso");
+            return Results.Ok(new { mensagem = "Placa modificada com sucesso" });
         })
         .WithName("PutMotos");
 
         app.MapGet("/motos/{id}", async (string id) =>
         {
             if (string.IsNullOrEmpty(id))
-                return Results.BadRequest("Request mal formado");
+                return Results.BadRequest(new { mensagem = "Request mal formado" });
 
             var motoExiste = await publisher.PublisherGetMotosID(id);
 
             if (motoExiste == null)
-                return Results.NotFound("Moto não encontrada");
+                return Results.NotFound(new { mensagem = "Moto não encontrada" });
 
             return Results.Ok(motoExiste);
         })
@@ -91,7 +91,7 @@ class Program
         app.MapDelete("/motos/{id}", (string id) =>
         {
             if (string.IsNullOrEmpty(id))
-                return Results.BadRequest("Dados inválidos");
+                return Results.BadRequest(new { mensagem = "Dados inválidos" });
 
             _ = publisher.PublisherDeleteMotos(id);
 
@@ -106,7 +106,7 @@ class Program
             if (string.IsNullOrEmpty(entregador.identificador) || string.IsNullOrEmpty(entregador.nome) ||
                 string.IsNullOrEmpty(entregador.cnpj) || string.IsNullOrEmpty(entregador.data_nascimento) ||
                 string.IsNullOrEmpty(entregador.numero_cnh) || string.IsNullOrEmpty(entregador.tipo_cnh))
-                return Results.BadRequest("Dados inválidos");
+                return Results.BadRequest(new { mensagem = "Dados inválidos" });
 
             _ = publisher.PublisherPostEntregadores(entregador);
 
@@ -114,11 +114,10 @@ class Program
         })
         .WithName("PostEntregador");
 
-        // TODO: CARREGAR A IMAGEM PARA O BANCO DE DADOS 
         app.MapPost("/entregadores/{id}/cnh", (string id, EntregadorUpdate entregador) =>
         {
             if (string.IsNullOrEmpty(entregador.imagem_cnh))
-                return Results.BadRequest("Dados inválidos");
+                return Results.BadRequest(new { mensagem = "Dados inválidos" });
 
             _ = publisher.PublisherPostEntregadoresEnviaFotoCNH(id, entregador.imagem_cnh);
 
@@ -133,8 +132,8 @@ class Program
             if (string.IsNullOrEmpty(locacao.entregador_id) || string.IsNullOrEmpty(locacao.moto_id) ||
                 string.IsNullOrEmpty(locacao.data_inicio) || string.IsNullOrEmpty(locacao.data_termino) ||
                 string.IsNullOrEmpty(locacao.data_previsao_termino) || locacao.plano <= 0)
-                return Results.BadRequest("Dados inválidos");
-                
+                return Results.BadRequest(new { mensagem = "Dados inválidos" });
+
             _ = publisher.PublisherPostLocacao(locacao);
 
             return Results.Created();
@@ -144,12 +143,12 @@ class Program
         app.MapGet("/locacao/{id}", async (string id) =>
         {
             if (string.IsNullOrEmpty(id))
-                return Results.BadRequest("Dados inválidos");
+                return Results.BadRequest(new { mensagem = "Dados inválidos" });
 
             var locacaoExiste = await publisher.PublisherGetLocacao(id);
 
             if (locacaoExiste == null)
-                return Results.NotFound("Locação não encontrada");
+                return Results.NotFound(new { mensagem = "Locação não encontrada" });
 
             return Results.Ok(locacaoExiste);
         })
@@ -158,11 +157,11 @@ class Program
         app.MapPut("/locacao/{id}/devolucao", (string id, LocacaoDevolucao locacaoDevolucao) =>
         {
             if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(locacaoDevolucao.data_devolucao))
-                return Results.BadRequest("Dados inválidos");
+                return Results.BadRequest(new { mensagem = "Dados inválidos" });
 
             _ = publisher.PublisherPutLocacao(id, locacaoDevolucao.data_devolucao);
 
-            return Results.Ok("Data de devolução informada com sucesso");
+            return Results.Ok(new { mensagem = "Data de devolução informada com sucesso" });
         })
         .WithName("PutLocacao");
     }
