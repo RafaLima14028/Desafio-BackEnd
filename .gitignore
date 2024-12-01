@@ -56,3 +56,6 @@ project.fragment.lock.json
 
 # User-specific files for JetBrains Rider
 .idea/
+
+# Pasta com imagens
+imagens_entregadores/

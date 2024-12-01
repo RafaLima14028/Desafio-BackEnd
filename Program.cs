@@ -4,7 +4,6 @@ using Models.Moto;
 using Models.Entregador;
 using Models.Locacao;
 
-using Services.DataBase;
 using Services.Publisher;
 using Services.Subscriber;
 
@@ -23,6 +22,8 @@ class Program
 
         app.UseHttpsRedirection();
 
+        Console.WriteLine("Chegou antes de entrar no sub...");
+
         _ = Task.Run(() => ExecutaSubscriber());
 
         ConfiguraRotasAPI(app);
@@ -33,8 +34,6 @@ class Program
     private static void ConfiguraRotasAPI(WebApplication app)
     {
         var publisher = new Publisher();
-
-        DataBase db = DataBase.GetInstanceDataBase();
 
         //! MOTOS
 
@@ -106,8 +105,7 @@ class Program
         {
             if (string.IsNullOrEmpty(entregador.identificador) || string.IsNullOrEmpty(entregador.nome) ||
                 string.IsNullOrEmpty(entregador.cnpj) || string.IsNullOrEmpty(entregador.data_nascimento) ||
-                string.IsNullOrEmpty(entregador.numero_cnh) || string.IsNullOrEmpty(entregador.tipo_cnh) ||
-                string.IsNullOrEmpty(entregador.imagem_cnh))
+                string.IsNullOrEmpty(entregador.numero_cnh) || string.IsNullOrEmpty(entregador.tipo_cnh))
                 return Results.BadRequest("Dados inválidos");
 
             _ = publisher.PublisherPostEntregadores(entregador);
@@ -136,9 +134,7 @@ class Program
                 string.IsNullOrEmpty(locacao.data_inicio) || string.IsNullOrEmpty(locacao.data_termino) ||
                 string.IsNullOrEmpty(locacao.data_previsao_termino) || locacao.plano <= 0)
                 return Results.BadRequest("Dados inválidos");
-
-            // locacoes.Add(locacao);
-            // db.PostLocacao(locacao);
+                
             _ = publisher.PublisherPostLocacao(locacao);
 
             return Results.Created();
@@ -173,8 +169,10 @@ class Program
 
     private static void ExecutaSubscriber()
     {
+        Console.WriteLine("Está começando o sub!!!");
         var subscriber = new Subscriber();
 
+        Console.WriteLine("Entou no escutando fila do sub!!!");
         _ = subscriber.EscutandoFila();
     }
 }

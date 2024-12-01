@@ -1,29 +1,5 @@
 <h1 align="Center">Desafio Backend</h1>
 
-<h2>Implemented Requirements:</h2>
-
-- Motos:
-
-  - [ ] POST /motos
-  - [ ] GET /motos
-  - [ ] PUT /motos/{id}/placa
-  - [ ] GET /motos/{id}
-  - [ ] DELETE /motos/{id}
-
-- Entregadores:
-
-  - [ ] POST /entregadores
-  - [ ] POST /entregadores/{id}/cnh
-
-- Locação:
-
-  - [ ] POST /locacao
-  - [ ] GET /locacao/{id}
-  - [ ] PUT /locacao/{id}/devolucao
-
-- [ ] Database
-- [ ] Pub/Sub
-
 <h2>Prerequisites:</h2>
 
 - **Git**
@@ -34,6 +10,30 @@
 - **Depenencies**:
   - **Npgsql**
   - **RabbitMQ.Client**
+
+<h2>Implemented Requirements:</h2>
+
+- Motos:
+
+  - [x] POST /motos
+  - [x] GET /motos
+  - [x] PUT /motos/{id}/placa
+  - [x] GET /motos/{id}
+  - [x] DELETE /motos/{id}
+
+- Entregadores (Review later):
+
+  - [x] POST /entregadores
+  - [x] POST /entregadores/{id}/cnh
+
+- Locação (Review later):
+
+  - [x] POST /locacao
+  - [x] GET /locacao/{id}
+  - [x] PUT /locacao/{id}/devolucao
+
+- [ ] Database
+- [ ] Pub/Sub
 
 <h2>How to use:</h2>
 

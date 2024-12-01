@@ -2,13 +2,13 @@ using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 using Models.Moto;
 using Models.Entregador;
 using Models.Locacao;
 
 using Services.DataBase;
-using System.Text.Json.Nodes;
 
 namespace Services.Subscriber
 {
@@ -23,6 +23,8 @@ namespace Services.Subscriber
 
         public Subscriber()
         {
+            Console.WriteLine("Entrou no construtor do sub");
+
             try
             {
                 this._connectionFactory = new ConnectionFactory
@@ -30,7 +32,11 @@ namespace Services.Subscriber
                     HostName = "localhost"
                 };
 
+                Console.WriteLine("Carregando db do sub");
+
                 this._dataBase = DataBase.DataBase.GetInstanceDataBase();
+
+                Console.WriteLine("Sub inicializado corretamente");
             }
             catch (Exception e)
             {
@@ -96,13 +102,11 @@ namespace Services.Subscriber
 
                     var body = ea.Body.ToArray();
                     var mensagem = Encoding.UTF8.GetString(body);
-                    Console.WriteLine(mensagem);
+                    // Console.WriteLine(mensagem);
 
                     var jsonDoc = JsonDocument.Parse(mensagem);
 
                     await ProcessaMensagens(jsonDoc);
-
-                    // return Task.CompletedTask;
                 };
 
                 Console.WriteLine("INICIA A ESCUTA DA FILA NO SUB");
@@ -131,11 +135,6 @@ namespace Services.Subscriber
             jsonObject.Remove("funcao");
 
             return jsonObject;
-        }
-
-        private static bool VerificaDuasStrings(string funcao1, string funcao2)
-        {
-            return funcao1.Equals(funcao2, StringComparison.OrdinalIgnoreCase) ? true : false;
         }
 
         private async Task ProcessaMensagens(JsonDocument jsonDoc)
@@ -326,7 +325,7 @@ namespace Services.Subscriber
             var tipo_cnh = jsonObject["tipo_cnh"]?.ToString();
             var imagem_cnh = jsonObject["imagem_cnh"]?.ToString();
 
-            if (string.IsNullOrEmpty(identificador) || string.IsNullOrEmpty(nome) || string.IsNullOrEmpty(cnpj) || string.IsNullOrEmpty(data_nascimento) || string.IsNullOrEmpty(numero_cnh) || string.IsNullOrEmpty(tipo_cnh) || string.IsNullOrEmpty(imagem_cnh))
+            if (string.IsNullOrEmpty(identificador) || string.IsNullOrEmpty(nome) || string.IsNullOrEmpty(cnpj) || string.IsNullOrEmpty(data_nascimento) || string.IsNullOrEmpty(numero_cnh) || string.IsNullOrEmpty(tipo_cnh))
                 return;
 
             Entregador entregador = new Entregador(
@@ -380,19 +379,21 @@ namespace Services.Subscriber
 
         private async Task GetLocacao(JsonObject jsonObject)
         {
-            var identificador = jsonObject["identificador"]?.ToString();
-
-            if (string.IsNullOrEmpty(identificador))
-                return;
-
             await this.AbreConexaoResposta();
 
             if (this._channel == null || this._channel_response == null)
                 return;
 
-            Locacao? locacao = this._dataBase.GetLocacao(identificador);
+            var identificador = jsonObject["identificador"]?.ToString();
+
+            if (string.IsNullOrEmpty(identificador))
+                return;
+
+            LocacaoRetorno? locacao = this._dataBase.GetLocacao(identificador);
 
             var mensagem_resposta = JsonSerializer.Serialize(locacao);
+
+            Console.WriteLine(mensagem_resposta);
 
             await this._channel_response.BasicPublishAsync(
                 exchange: string.Empty,

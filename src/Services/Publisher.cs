@@ -384,13 +384,14 @@ namespace Services.Publisher
             }
         }
 
-        public async Task<Locacao?> PublisherGetLocacao(string id)
+        public async Task<LocacaoRetorno?> PublisherGetLocacao(string id)
         {
             try
             {
                 await this.AbreConexao();
+                await this.AbreConexaoResposta();
 
-                if (this._channel == null)
+                if (this._channel == null || this._channel_response == null)
                     return null;
 
                 var mensagem = JsonSerializer.Serialize(new
@@ -405,7 +406,7 @@ namespace Services.Publisher
 
                 string resposta = await EsperaResposta();
 
-                Locacao? locacao = JsonSerializer.Deserialize<Locacao?>(resposta);
+                LocacaoRetorno? locacao = JsonSerializer.Deserialize<LocacaoRetorno?>(resposta);
 
                 return locacao;
             }

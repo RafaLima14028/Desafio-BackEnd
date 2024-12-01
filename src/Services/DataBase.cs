@@ -8,18 +8,33 @@ namespace Services.DataBase
 {
     public class DataBase
     {
-        private static string formato = "yyyy-MM-ddTHH:mm:ssZ";
-
-        private static DataBase? database_instance; // Singleton instance
-
-        private string conexaoString;
+        private static string _formato = "yyyy-MM-ddTHH:mm:ssZ";
+        private readonly static string _diretorio_imagens = "imagens_entregadores";
+        private readonly static string _diretorio_completo = Path.Combine(Directory.GetCurrentDirectory(), _diretorio_imagens);
+        private static DataBase? _database_instance; // Instancia Singleton
+        private string _conexaoString;
 
         private DataBase()
         {
-            this.conexaoString = "Host=localhost;Port=5432;Database=motoDB;Username=postgres;Password=1234";
+            this._conexaoString = "Host=localhost;Port=5432;Database=motoDB;Username=postgres;Password=1234";
 
-            var conexao = new NpgsqlConnection(this.conexaoString);
+            Console.WriteLine("Abrindo conexao");
+
+            var conexao = new NpgsqlConnection(this._conexaoString);
             conexao.Open();
+
+            Console.WriteLine("Criando sequencia...");
+
+
+            string criaSequenciaIdentificadorLocacoesQuery = @"
+                CREATE SEQUENCE IF NOT EXISTS locacoes_identificador_seq START 1;
+            ";
+
+            var comando = new NpgsqlCommand(criaSequenciaIdentificadorLocacoesQuery, conexao);
+            comando.ExecuteNonQuery();
+
+            Console.WriteLine("Sequencia criando...");
+
 
             string criaTabelaMotosQuery = @"
                 CREATE TABLE IF NOT EXISTS Motos (
@@ -30,7 +45,8 @@ namespace Services.DataBase
                 );
             ";
 
-            var comando = new NpgsqlCommand(criaTabelaMotosQuery, conexao);
+            Console.WriteLine("Tabela motos criada");
+            comando = new NpgsqlCommand(criaTabelaMotosQuery, conexao);
             comando.ExecuteNonQuery();
 
             string criaTabelaEntregadoresQuery = @"
@@ -41,15 +57,17 @@ namespace Services.DataBase
                     DATA_NASCIMENTO TIMESTAMP NOT NULL,
                     NUMERO_CNH VARCHAR(50) UNIQUE NOT NULL,
                     TIPO_CNH VARCHAR(2) NOT NULL,
-                    IMAGEM_CNH BYTEA
+                    IMAGEM_CNH VARCHAR(500)
                 );
             ";
 
+            Console.WriteLine("Tabela entregadores criada");
             comando = new NpgsqlCommand(criaTabelaEntregadoresQuery, conexao);
             comando.ExecuteNonQuery();
 
             string criaTabelaLotacaoQuery = @"
                 CREATE TABLE IF NOT EXISTS Locacoes (
+                    IDENTIFICADOR VARCHAR(50) PRIMARY KEY DEFAULT 'locacao' || nextval('locacoes_identificador_seq'),
                     ENTREGADOR_ID VARCHAR(100) NOT NULL,
                     MOTO_ID VARCHAR(100) NOT NULL,
                     DATA_INICIO TIMESTAMP NOT NULL,
@@ -60,10 +78,11 @@ namespace Services.DataBase
                     DATA_DEVOLUCAO TIMESTAMP,
 
                     CONSTRAINT FK_ENTREGADOR_ID FOREIGN KEY (ENTREGADOR_ID) REFERENCES Entregadores (IDENTIFICADOR),
-                    CONSTRAINT FK_MOTO FOREIGN KEY (MOTO_ID) REFERENCES Motos (IDENTIFICADOR)
+                    CONSTRAINT FK_MOTO_ID FOREIGN KEY (MOTO_ID) REFERENCES Motos (IDENTIFICADOR)
                 );
             ";
 
+            Console.WriteLine("Tabela locacoes criada");
             comando = new NpgsqlCommand(criaTabelaLotacaoQuery, conexao);
             comando.ExecuteNonQuery();
 
@@ -72,10 +91,10 @@ namespace Services.DataBase
 
         public static DataBase GetInstanceDataBase()
         {
-            if (database_instance == null)
-                database_instance = new DataBase();
+            if (_database_instance == null)
+                _database_instance = new DataBase();
 
-            return database_instance;
+            return _database_instance;
         }
 
         private static DateTime stringParaDetetime(string data)
@@ -117,11 +136,31 @@ namespace Services.DataBase
             }
         }
 
+        private static void CriaPastaDeImagensEntregadores()
+        {
+            if (!Directory.Exists(_diretorio_completo))
+                Directory.CreateDirectory(_diretorio_completo);
+        }
+
+        private static string SalvarImagemEntregadorCnh(string entregador_id, byte[] imagem_cnh)
+        {
+            CriaPastaDeImagensEntregadores();
+
+            string nome_arquivo = $"{entregador_id}.jpg";
+            string nome_pasta = Path.Combine(_diretorio_completo, nome_arquivo);
+
+            System.IO.File.WriteAllBytes(nome_pasta, imagem_cnh);
+
+            string nome_pasta_relativa = Path.Combine(_diretorio_imagens, nome_arquivo);
+
+            return nome_pasta_relativa;
+        }
+
         public bool PostMotos(Moto moto)
         {
             try
             {
-                var conexao = new NpgsqlConnection(this.conexaoString);
+                var conexao = new NpgsqlConnection(this._conexaoString);
                 conexao.Open();
 
                 string insereMotoQuery = @"
@@ -155,7 +194,7 @@ namespace Services.DataBase
 
             try
             {
-                var conexao = new NpgsqlConnection(this.conexaoString);
+                var conexao = new NpgsqlConnection(this._conexaoString);
                 conexao.Open();
 
                 string getMotosPelaPlaca = @"
@@ -196,7 +235,7 @@ namespace Services.DataBase
         {
             try
             {
-                var conexao = new NpgsqlConnection(this.conexaoString);
+                var conexao = new NpgsqlConnection(this._conexaoString);
                 conexao.Open();
 
                 string putAtualizacaoPlacaMotoQuery = @"
@@ -224,11 +263,12 @@ namespace Services.DataBase
             return true;
         }
 
+        // TODO: CORRIGIR AQUI (PEGAR PELO IDENTIFICADOR)
         public Moto? GetMotosID(string id)
         {
             try
             {
-                var conexao = new NpgsqlConnection(this.conexaoString);
+                var conexao = new NpgsqlConnection(this._conexaoString);
                 conexao.Open();
 
                 string getMotoIDQuery = @"
@@ -273,7 +313,7 @@ namespace Services.DataBase
         {
             try
             {
-                var conexao = new NpgsqlConnection(this.conexaoString);
+                var conexao = new NpgsqlConnection(this._conexaoString);
                 conexao.Open();
 
                 string deleteMotoQuery = @"
@@ -306,17 +346,25 @@ namespace Services.DataBase
 
             try
             {
-                var conexao = new NpgsqlConnection(this.conexaoString);
+                var conexao = new NpgsqlConnection(this._conexaoString);
                 conexao.Open();
 
                 var data_nascimento_entregador = stringParaDetetime(entregador.data_nascimento);
-                string? postNovoEntregadorQuery;
+
+                string? pasta_relativa = null;
 
                 if (!string.IsNullOrEmpty(entregador.imagem_cnh))
                 {
-                    postNovoEntregadorQuery = @"
+                    byte[] imagemBytes = Convert.FromBase64String(entregador.imagem_cnh);
+
+                    pasta_relativa = SalvarImagemEntregadorCnh(entregador.identificador, imagemBytes);
+                }
+
+                if (pasta_relativa != null)
+                {
+                    string? postNovoEntregadorQuery = @"
                         INSERT INTO Entregadores (IDENTIFICADOR, NOME, CNPJ, DATA_NASCIMENTO,NUMERO_CNH, TIPO_CNH, IMAGEM_CNH) 
-                        VALUES (@IDENTIFICADOR, @NOME, @CNPJ, @DATA_NASCIMENTO, @NUMERO_CNH,@TIPO_CNH, @IMAGEM_CNH);
+                        VALUES (@IDENTIFICADOR, @NOME, @CNPJ, @DATA_NASCIMENTO, @NUMERO_CNH, @TIPO_CNH, @IMAGEM_CNH);
                     ";
 
                     var comando = new NpgsqlCommand(postNovoEntregadorQuery, conexao);
@@ -327,15 +375,15 @@ namespace Services.DataBase
                     comando.Parameters.AddWithValue("DATA_NASCIMENTO", data_nascimento_entregador);
                     comando.Parameters.AddWithValue("NUMERO_CNH", entregador.numero_cnh);
                     comando.Parameters.AddWithValue("TIPO_CNH", entregador.tipo_cnh);
-                    comando.Parameters.AddWithValue("IMAGEM_CNH", entregador.imagem_cnh);
+                    comando.Parameters.AddWithValue("IMAGEM_CNH", pasta_relativa);
 
                     comando.ExecuteNonQuery();
                 }
                 else
                 {
-                    postNovoEntregadorQuery = @"
+                    string? postNovoEntregadorQuery = @"
                         INSERT INTO Entregadores (IDENTIFICADOR, NOME, CNPJ, DATA_NASCIMENTO,NUMERO_CNH, TIPO_CNH) 
-                        VALUES (@IDENTIFICADOR, @NOME, @CNPJ, @DATA_NASCIMENTO, @NUMERO_CNH,@TIPO_CNH);
+                        VALUES (@IDENTIFICADOR, @NOME, @CNPJ, @DATA_NASCIMENTO, @NUMERO_CNH, @TIPO_CNH);
                     ";
 
                     var comando = new NpgsqlCommand(postNovoEntregadorQuery, conexao);
@@ -364,10 +412,19 @@ namespace Services.DataBase
 
         public bool PostEntregadorEnviaFotoCNH(string id, string imagem_cnh)
         {
+            Entregador? entregador = this.GetEntregador(id);
+
+            if (entregador == null)
+                return false;
+
             try
             {
-                var conexao = new NpgsqlConnection(this.conexaoString);
+                var conexao = new NpgsqlConnection(this._conexaoString);
                 conexao.Open();
+
+                byte[] imagemBytes = Convert.FromBase64String(imagem_cnh);
+
+                string pasta_relativa = SalvarImagemEntregadorCnh(id, imagemBytes);
 
                 string postEntregadorEnviaFotoCNHQuery = @"
                     UPDATE Entregadores
@@ -377,7 +434,7 @@ namespace Services.DataBase
 
                 var comando = new NpgsqlCommand(postEntregadorEnviaFotoCNHQuery, conexao);
 
-                comando.Parameters.AddWithValue("IMAGEM_CNH", imagem_cnh);
+                comando.Parameters.AddWithValue("IMAGEM_CNH", pasta_relativa);
                 comando.Parameters.AddWithValue("ID", id);
 
                 comando.ExecuteNonQuery();
@@ -398,7 +455,7 @@ namespace Services.DataBase
         {
             try
             {
-                var conexao = new NpgsqlConnection(this.conexaoString);
+                var conexao = new NpgsqlConnection(this._conexaoString);
                 conexao.Open();
 
                 string getEntregadorQuery = @"
@@ -418,10 +475,9 @@ namespace Services.DataBase
                         leitor.GetString(leitor.GetOrdinal("IDENTIFICADOR")),
                         leitor.GetString(leitor.GetOrdinal("NOME")),
                         leitor.GetString(leitor.GetOrdinal("CNPJ")),
-                        leitor.GetDateTime(leitor.GetOrdinal("DATA_NASCIMENTO")).ToString(formato),
+                        leitor.GetDateTime(leitor.GetOrdinal("DATA_NASCIMENTO")).ToString(_formato),
                         leitor.GetString(leitor.GetOrdinal("NUMERO_CNH")),
-                        leitor.GetString(leitor.GetOrdinal("TIPO_CNH")),
-                        leitor.GetString(leitor.GetOrdinal("IMAGEM_CNH"))
+                        leitor.GetString(leitor.GetOrdinal("TIPO_CNH"))
                     );
 
                     conexao.Close();
@@ -457,7 +513,7 @@ namespace Services.DataBase
 
                 string novaDataMaisUmDia = dataMaisUmDia.ToString("yyyy-MM-ddTHH:mm:ssZ");
 
-                var conexao = new NpgsqlConnection(this.conexaoString);
+                var conexao = new NpgsqlConnection(this._conexaoString);
                 conexao.Open();
 
                 string postLotacaoQuery = @"
@@ -469,7 +525,7 @@ namespace Services.DataBase
 
                 comando.Parameters.AddWithValue("ENTREGADOR_ID", locacao.entregador_id);
                 comando.Parameters.AddWithValue("MOTO_ID", locacao.moto_id);
-                comando.Parameters.AddWithValue("DATA_INICIO", novaDataMaisUmDia);
+                comando.Parameters.AddWithValue("DATA_INICIO", stringParaDetetime(novaDataMaisUmDia));
                 comando.Parameters.AddWithValue("DATA_TERMINO", stringParaDetetime(locacao.data_termino));
                 comando.Parameters.AddWithValue("DATA_PREVISAO_TERMINO", stringParaDetetime(locacao.data_previsao_termino));
                 comando.Parameters.AddWithValue("PLANO", locacao.plano);
@@ -489,18 +545,16 @@ namespace Services.DataBase
             return true;
         }
 
-        public Locacao? GetLocacao(string id)
+        public LocacaoRetorno? GetLocacao(string id)
         {
-            Locacao locacaoExiste;
-
             try
             {
-                var conexao = new NpgsqlConnection(this.conexaoString);
+                var conexao = new NpgsqlConnection(this._conexaoString);
                 conexao.Open();
 
                 string getLotacaoQuery = @"
                     SELECT * FROM Locacoes
-                    WHERE MOTO_ID=@ID;
+                    WHERE IDENTIFICADOR=@ID;
                 ";
 
                 var comando = new NpgsqlCommand(getLotacaoQuery, conexao);
@@ -511,24 +565,27 @@ namespace Services.DataBase
 
                 if (leitor.Read())
                 {
+                    var identificador = leitor.GetString(leitor.GetOrdinal("IDENTIFICADOR"));
+                    var valor_plano = leitor.GetFloat(leitor.GetOrdinal("VALOR_PLANO"));
+
                     var entregador_id = leitor.GetString(leitor.GetOrdinal("ENTREGADOR_ID"));
                     var moto_id = leitor.GetString(leitor.GetOrdinal("MOTO_ID"));
-                    var data_inicio = leitor.GetDateTime(leitor.GetOrdinal("DATA_INICIO")).ToString(formato);
-                    var data_termino = leitor.GetDateTime(leitor.GetOrdinal("DATA_TERMINO")).ToString(formato);
-                    var data_previsao_termino = leitor.GetDateTime(leitor.GetOrdinal("DATA_PREVISAO_TERMINO")).ToString(formato);
+                    var data_inicio = leitor.GetDateTime(leitor.GetOrdinal("DATA_INICIO")).ToString(_formato);
+                    var data_termino = leitor.GetDateTime(leitor.GetOrdinal("DATA_TERMINO")).ToString(_formato);
+                    var data_previsao_termino = leitor.GetDateTime(leitor.GetOrdinal("DATA_PREVISAO_TERMINO")).ToString(_formato);
                     var plano = leitor.GetInt32(leitor.GetOrdinal("PLANO"));
                     string? data_devolucao = leitor.IsDBNull(leitor.GetOrdinal("DATA_DEVOLUCAO"))
                                                 ? null
-                                                : leitor.GetDateTime(leitor.GetOrdinal("DATA_DEVOLUCAO")).ToString(formato);
+                                                : leitor.GetDateTime(leitor.GetOrdinal("DATA_DEVOLUCAO")).ToString(_formato);
 
-                    locacaoExiste = new Locacao
-                    (
+                    LocacaoRetorno locacaoExiste = new LocacaoRetorno(
+                        identificador,
+                        valor_plano,
                         entregador_id,
                         moto_id,
                         data_inicio,
                         data_termino,
                         data_previsao_termino,
-                        plano,
                         data_devolucao
                     );
 
@@ -541,7 +598,7 @@ namespace Services.DataBase
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Erro no banco de dados ao cadastrar nova locacao: {e.Message}");
+                Console.WriteLine($"Erro no banco de dados ao consultar uma locacao: {e.Message}");
             }
 
             return null;
@@ -549,34 +606,37 @@ namespace Services.DataBase
 
         public bool PutLocacao(string id, string data_devolucao)
         {
+            Console.WriteLine(id);
+            Console.WriteLine(data_devolucao);
+
             try
             {
-                var conexao = new NpgsqlConnection(this.conexaoString);
+                var conexao = new NpgsqlConnection(this._conexaoString);
                 conexao.Open();
 
                 string postLotacaoQuery = @"
                     UPDATE Locacoes
                     SET DATA_DEVOLUCAO=@DATA_DEVOLUCAO
-                    WHERE MOTO_ID=@ID;
+                    WHERE IDENTIFICADOR=@IDENTIFICADOR;
                 ";
 
                 var comando = new NpgsqlCommand(postLotacaoQuery, conexao);
 
                 comando.Parameters.AddWithValue("DATA_DEVOLUCAO", stringParaDetetime(data_devolucao));
-                comando.Parameters.AddWithValue("ID", id);
+                comando.Parameters.AddWithValue("IDENTIFICADOR", id);
 
                 comando.ExecuteNonQuery();
 
                 conexao.Close();
+
+                return true;
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Erro no banco de dados ao cadastrar nova locacao: {e.Message}");
-
-                return false;
+                Console.WriteLine($"Erro no banco de dados ao alterar data de devolução de uma locação: {e.Message}");
             }
 
-            return true;
+            return false;
         }
     }
 }
