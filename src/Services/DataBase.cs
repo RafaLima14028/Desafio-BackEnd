@@ -37,11 +37,11 @@ namespace Services.DataBase
                 CREATE TABLE IF NOT EXISTS Entregadores (
                     IDENTIFICADOR VARCHAR(100) PRIMARY KEY,
                     NOME VARCHAR(100) NOT NULL,
-                    CNPJ VARCHAR(50) NOT NULL,
+                    CNPJ VARCHAR(50) UNIQUE NOT NULL,
                     DATA_NASCIMENTO TIMESTAMP NOT NULL,
-                    NUMERO_CNH VARCHAR(50) NOT NULL,
-                    TIPO_CNH VARCHAR(20) NOT NULL,
-                    IMAGEM_CNH VARCHAR(100)
+                    NUMERO_CNH VARCHAR(50) UNIQUE NOT NULL,
+                    TIPO_CNH VARCHAR(2) NOT NULL,
+                    IMAGEM_CNH BYTEA
                 );
             ";
 
@@ -56,6 +56,7 @@ namespace Services.DataBase
                     DATA_TERMINO TIMESTAMP NOT NULL,
                     DATA_PREVISAO_TERMINO TIMESTAMP NOT NULL,
                     PLANO INTEGER NOT NULL,
+                    VALOR_PLANO REAL NOT NULL,
                     DATA_DEVOLUCAO TIMESTAMP,
 
                     CONSTRAINT FK_ENTREGADOR_ID FOREIGN KEY (ENTREGADOR_ID) REFERENCES Entregadores (IDENTIFICADOR),
@@ -80,6 +81,40 @@ namespace Services.DataBase
         private static DateTime stringParaDetetime(string data)
         {
             return DateTime.Parse(data);
+        }
+
+        private static bool TipoCnhValido(string tipo_cnh)
+        {
+            switch (tipo_cnh.ToLower())
+            {
+                case "a":
+                    return true;
+                case "b":
+                    return true;
+                case "ab":
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private static float ValorDoPlano(int plano)
+        {
+            switch (plano)
+            {
+                case 7:
+                    return 30.00F;
+                case 15:
+                    return 28.00F;
+                case 30:
+                    return 22.00F;
+                case 45:
+                    return 20.00F;
+                case 50:
+                    return 18.00F;
+                default:
+                    return -1.00F;
+            }
         }
 
         public bool PostMotos(Moto moto)
@@ -266,16 +301,20 @@ namespace Services.DataBase
 
         public bool PostEntregador(Entregador entregador)
         {
+            if (!TipoCnhValido(entregador.tipo_cnh))
+                return false;
+
             try
             {
                 var conexao = new NpgsqlConnection(this.conexaoString);
                 conexao.Open();
 
                 var data_nascimento_entregador = stringParaDetetime(entregador.data_nascimento);
+                string? postNovoEntregadorQuery;
 
                 if (!string.IsNullOrEmpty(entregador.imagem_cnh))
                 {
-                    string postNovoEntregadorQuery = @"
+                    postNovoEntregadorQuery = @"
                         INSERT INTO Entregadores (IDENTIFICADOR, NOME, CNPJ, DATA_NASCIMENTO,NUMERO_CNH, TIPO_CNH, IMAGEM_CNH) 
                         VALUES (@IDENTIFICADOR, @NOME, @CNPJ, @DATA_NASCIMENTO, @NUMERO_CNH,@TIPO_CNH, @IMAGEM_CNH);
                     ";
@@ -294,7 +333,7 @@ namespace Services.DataBase
                 }
                 else
                 {
-                    string postNovoEntregadorQuery = @"
+                    postNovoEntregadorQuery = @"
                         INSERT INTO Entregadores (IDENTIFICADOR, NOME, CNPJ, DATA_NASCIMENTO,NUMERO_CNH, TIPO_CNH) 
                         VALUES (@IDENTIFICADOR, @NOME, @CNPJ, @DATA_NASCIMENTO, @NUMERO_CNH,@TIPO_CNH);
                     ";
@@ -355,26 +394,86 @@ namespace Services.DataBase
             return true;
         }
 
-        public bool PostLocacao(Locacao locacao)
+        private Entregador? GetEntregador(string id)
         {
             try
             {
                 var conexao = new NpgsqlConnection(this.conexaoString);
                 conexao.Open();
 
+                string getEntregadorQuery = @"
+                    SELECT * FROM Entregadores
+                    WHERE IDENTIFICADOR=@ID;
+                ";
+
+                var comando = new NpgsqlCommand(getEntregadorQuery, conexao);
+
+                comando.Parameters.AddWithValue("ID", id);
+
+                var leitor = comando.ExecuteReader();
+
+                if (leitor.Read())
+                {
+                    Entregador entregador = new Entregador(
+                        leitor.GetString(leitor.GetOrdinal("IDENTIFICADOR")),
+                        leitor.GetString(leitor.GetOrdinal("NOME")),
+                        leitor.GetString(leitor.GetOrdinal("CNPJ")),
+                        leitor.GetDateTime(leitor.GetOrdinal("DATA_NASCIMENTO")).ToString(formato),
+                        leitor.GetString(leitor.GetOrdinal("NUMERO_CNH")),
+                        leitor.GetString(leitor.GetOrdinal("TIPO_CNH")),
+                        leitor.GetString(leitor.GetOrdinal("IMAGEM_CNH"))
+                    );
+
+                    conexao.Close();
+
+                    return entregador;
+                }
+
+                conexao.Close();
+
+                return null;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Erro no banco de dados ao pegar entregador usando o ID: {e.Message}");
+
+                return null;
+            }
+        }
+
+        public bool PostLocacao(Locacao locacao)
+        {
+            try
+            {
+                Entregador? entregador = this.GetEntregador(locacao.entregador_id);
+
+                if (entregador == null)
+                    return false;
+                else if (entregador.tipo_cnh.ToLower() == "b")
+                    return false;
+
+                DateTime data = DateTime.Parse(locacao.data_inicio, null, System.Globalization.DateTimeStyles.RoundtripKind);
+                DateTime dataMaisUmDia = data.AddDays(1);
+
+                string novaDataMaisUmDia = dataMaisUmDia.ToString("yyyy-MM-ddTHH:mm:ssZ");
+
+                var conexao = new NpgsqlConnection(this.conexaoString);
+                conexao.Open();
+
                 string postLotacaoQuery = @"
-                    INSERT INTO Locacoes (ENTREGADOR_ID, MOTO_ID, DATA_INICIO, DATA_TERMINO, DATA_PREVISAO_TERMINO, PLANO)
-                    VALUES (@ENTREGADOR_ID, @MOTO_ID, @DATA_INICIO, @DATA_TERMINO, @DATA_PREVISAO_TERMINO, @PLANO);
+                    INSERT INTO Locacoes (ENTREGADOR_ID, MOTO_ID, DATA_INICIO, DATA_TERMINO, DATA_PREVISAO_TERMINO, PLANO, VALOR_PLANO)
+                    VALUES (@ENTREGADOR_ID, @MOTO_ID, @DATA_INICIO, @DATA_TERMINO, @DATA_PREVISAO_TERMINO, @PLANO, @VALOR_PLANO);
                 ";
 
                 var comando = new NpgsqlCommand(postLotacaoQuery, conexao);
 
                 comando.Parameters.AddWithValue("ENTREGADOR_ID", locacao.entregador_id);
                 comando.Parameters.AddWithValue("MOTO_ID", locacao.moto_id);
-                comando.Parameters.AddWithValue("DATA_INICIO", stringParaDetetime(locacao.data_inicio));
+                comando.Parameters.AddWithValue("DATA_INICIO", novaDataMaisUmDia);
                 comando.Parameters.AddWithValue("DATA_TERMINO", stringParaDetetime(locacao.data_termino));
                 comando.Parameters.AddWithValue("DATA_PREVISAO_TERMINO", stringParaDetetime(locacao.data_previsao_termino));
                 comando.Parameters.AddWithValue("PLANO", locacao.plano);
+                comando.Parameters.AddWithValue("VALOR_PLANO", ValorDoPlano(locacao.plano));
 
                 comando.ExecuteNonQuery();
 

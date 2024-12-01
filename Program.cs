@@ -23,21 +23,11 @@ class Program
 
         app.UseHttpsRedirection();
 
-        var cts = new CancellationTokenSource();
-
-        Console.CancelKeyPress += (sender, eventArgs) =>
-        {
-            eventArgs.Cancel = true;
-            cts.Cancel();
-        };
-
-        _ = Task.Run(() => ExecutaSubscriber(cts.Token));
+        _ = Task.Run(() => ExecutaSubscriber());
 
         ConfiguraRotasAPI(app);
 
         app.Run();
-
-        cts.Dispose();
     }
 
     private static void ConfiguraRotasAPI(WebApplication app)
@@ -126,13 +116,13 @@ class Program
         })
         .WithName("PostEntregador");
 
+        // TODO: CARREGAR A IMAGEM PARA O BANCO DE DADOS 
         app.MapPost("/entregadores/{id}/cnh", (string id, EntregadorUpdate entregador) =>
         {
             if (string.IsNullOrEmpty(entregador.imagem_cnh))
                 return Results.BadRequest("Dados inválidos");
 
             _ = publisher.PublisherPostEntregadoresEnviaFotoCNH(id, entregador.imagem_cnh);
-            // db.PostEntregadorEnviaFotoCNH(id, entregador.imagem_cnh);
 
             return Results.Created();
         })
@@ -181,10 +171,10 @@ class Program
         .WithName("PutLocacao");
     }
 
-    private static void ExecutaSubscriber(CancellationToken token)
+    private static void ExecutaSubscriber()
     {
         var subscriber = new Subscriber();
 
-        _ = subscriber.EscutandoFila(token);
+        _ = subscriber.EscutandoFila();
     }
 }

@@ -76,7 +76,7 @@ namespace Services.Subscriber
             Console.WriteLine($"[SUBSCRIBER] FILA DECLARADA ({_nome_fila_respostas}).");
         }
 
-        public async Task EscutandoFila(CancellationToken cancellationToken)
+        public async Task EscutandoFila()
         {
             await this.AbreConexao();
 
@@ -92,9 +92,6 @@ namespace Services.Subscriber
                 Console.WriteLine("CRIANDO O CONSUMER NO SUB");
                 consumer.ReceivedAsync += async (model, ea) =>
                 {
-                    if (cancellationToken.IsCancellationRequested)
-                        return;
-
                     Console.WriteLine("[SUBSCRIBER] MENSAGEM RECEBIDA.");
 
                     var body = ea.Body.ToArray();
@@ -174,7 +171,7 @@ namespace Services.Subscriber
                         break;
 
                     case "getmotosid":
-                        this.GetMotosID(jsonObject);
+                        await this.GetMotosID(jsonObject);
                         break;
 
                     case "deletemotos":
@@ -194,7 +191,7 @@ namespace Services.Subscriber
                         break;
 
                     case "getlocacao":
-                        this.GetLocacao(jsonObject);
+                        await this.GetLocacao(jsonObject);
                         break;
 
                     case "putlocacao":
