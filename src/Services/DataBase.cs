@@ -56,7 +56,7 @@ namespace Services.DataBase
                     CNPJ VARCHAR(50) UNIQUE NOT NULL,
                     DATA_NASCIMENTO TIMESTAMP NOT NULL,
                     NUMERO_CNH VARCHAR(50) UNIQUE NOT NULL,
-                    TIPO_CNH VARCHAR(2) NOT NULL,
+                    TIPO_CNH VARCHAR(3) NOT NULL,
                     IMAGEM_CNH VARCHAR(500)
                 );
             ";
@@ -111,6 +111,8 @@ namespace Services.DataBase
                 case "b":
                     return true;
                 case "ab":
+                    return true;
+                case "a+b":
                     return true;
                 default:
                     return false;
@@ -504,7 +506,7 @@ namespace Services.DataBase
 
                 if (entregador == null)
                     return false;
-                else if (entregador.tipo_cnh.ToLower() == "b")
+                else if (entregador.tipo_cnh.ToLower() == "a" || entregador.tipo_cnh.ToLower() == "ab" || entregador.tipo_cnh.ToLower() == "a+b")
                     return false;
 
                 DateTime data = DateTime.Parse(locacao.data_inicio, null, System.Globalization.DateTimeStyles.RoundtripKind);
@@ -603,6 +605,104 @@ namespace Services.DataBase
             return null;
         }
 
+        private LocacaoCompleta? GetTodosDadosLocacao(string id)
+        {
+            try
+            {
+                var conexao = new NpgsqlConnection(this._conexaoString);
+                conexao.Open();
+
+                string getTodasInformacoesLocacaoQuery = @"
+                    SELECT * FROM Locacoes
+                    WHERE IDENTIFICADOR=@IDENTIFICADOR;
+                ";
+
+                var comando = new NpgsqlCommand(getTodasInformacoesLocacaoQuery, conexao);
+
+                comando.Parameters.AddWithValue("IDENTIFICADOR", id);
+
+                var leitor = comando.ExecuteReader();
+
+                if (leitor.Read())
+                {
+                    string? data_devolucao = leitor.IsDBNull(leitor.GetOrdinal("DATA_DEVOLUCAO"))
+                            ? null
+                            : leitor.GetDateTime(leitor.GetOrdinal("DATA_DEVOLUCAO")).ToString(_formato);
+
+                    if (data_devolucao == null)
+                        return null;
+
+                    var identificador = leitor.GetString(leitor.GetOrdinal("IDENTIFICADOR")).ToString();
+                    var plano = leitor.GetInt32(leitor.GetOrdinal("PLANO"));
+                    var valor_diaria = leitor.GetFloat(leitor.GetOrdinal("VALOR_PLANO"));
+                    var data_inicio = leitor.GetDateTime(leitor.GetOrdinal("DATA_INICIO")).ToString(_formato);
+                    var data_termino = leitor.GetDateTime(leitor.GetOrdinal("DATA_TERMINO")).ToString(_formato);
+                    var data_previsao_termino = leitor.GetDateTime(leitor.GetOrdinal("DATA_PREVISAO_TERMINO")).ToString(_formato);
+
+                    LocacaoCompleta locacao = new LocacaoCompleta(
+                        identificador,
+                        plano,
+                        valor_diaria,
+                        data_inicio,
+                        data_termino,
+                        data_previsao_termino,
+                        data_devolucao
+                    );
+
+                    conexao.Close();
+
+                    return locacao;
+                }
+
+                conexao.Close();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"Erro no banco de dados ao pegar todas as informações de locação: {e.Message}");
+            }
+
+            return null;
+        }
+
+        private static float CalculaValorTotal(int plano, float valor_diaria, string data_inicio, string data_devolucao, string data_previsao_termino)
+        {
+            DateTime dataInicio = DateTime.Parse(data_inicio);
+            DateTime dataDevolucao = DateTime.Parse(data_devolucao);
+            DateTime dataPrevisaoTermino = DateTime.Parse(data_previsao_termino);
+
+            int diasTotaisPrevistos = (dataPrevisaoTermino - dataInicio).Days;
+            int diasTotaisRealizados = (dataDevolucao - dataInicio).Days;
+
+            if (diasTotaisRealizados < 0)
+                throw new ArgumentException("A data de devolução não pode ser anterior à data de início.");
+
+            float valorTotal;
+
+            if (dataDevolucao < dataPrevisaoTermino) // Devolução antecipada
+            {
+                int diasNaoEfetivados = (dataPrevisaoTermino - dataDevolucao).Days;
+                valorTotal = diasTotaisRealizados * valor_diaria;
+
+                float multaPorcentagem = plano == 7 ? 0.20f : plano == 15 ? 0.40f : 0;
+
+                if (multaPorcentagem > 0)
+                {
+                    float valorMulta = diasNaoEfetivados * valor_diaria * multaPorcentagem;
+                    valorTotal += valorMulta;
+                }
+            }
+            else if (dataDevolucao > dataPrevisaoTermino) // Devolução atrasada
+            {
+                int diasAdicionais = (dataDevolucao - dataPrevisaoTermino).Days;
+                valorTotal = diasTotaisPrevistos * valor_diaria + diasAdicionais * 50;
+            }
+            else // Devolução na data prevista
+                valorTotal = diasTotaisPrevistos * valor_diaria;
+
+            return valorTotal;
+        }
+
+
         public bool PutLocacao(string id, string data_devolucao)
         {
             Console.WriteLine(id);
@@ -627,6 +727,18 @@ namespace Services.DataBase
                 comando.ExecuteNonQuery();
 
                 conexao.Close();
+
+                LocacaoCompleta? locacao = this.GetTodosDadosLocacao(id);
+
+                if (locacao != null)
+                {
+                    if (locacao.data_devolucao == null)
+                        return false;
+
+                    float valor_total = CalculaValorTotal(locacao.plano, locacao.valor_diaria, locacao.data_inicio, locacao.data_devolucao, locacao.data_previsao_termino);
+                }
+                else
+                    return false;
 
                 return true;
             }
