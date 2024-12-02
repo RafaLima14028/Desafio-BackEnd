@@ -1,5 +1,9 @@
 <h1 align="Center">Desafio Backend</h1>
 
+<h2>Description:</h2>
+
+This project is a backend solution that utilizes .NET and PostgreSQL to manage motorcycle rentals for delivery people. It includes integration with RabbitMQ. The architecture above allows for clear organization, separating models, services, and environment configurations.
+
 <h2>Prerequisites:</h2>
 
 - **Git**
@@ -21,19 +25,19 @@
   - [x] GET /motos/{id}
   - [x] DELETE /motos/{id}
 
-- Entregadores (Review later):
+- Entregadores:
 
   - [x] POST /entregadores
   - [x] POST /entregadores/{id}/cnh
 
-- Locação (Review later):
+- Locação:
 
   - [x] POST /locacao
   - [x] GET /locacao/{id}
   - [x] PUT /locacao/{id}/devolucao
 
-- [ ] Database
-- [ ] Pub/Sub
+- [x] Database
+- [x] Publisher/Subscriber
 
 <h2>How to use:</h2>
 
@@ -781,10 +785,180 @@ dotnet run
        );
        ```
 
-<h2>TODO: Database:</h2>
+<h2>Database:</h2>
 
-Data Model: Present diagrams or tables illustrating the database structure.
+The database has the following structure:
 
-Connection Configuration: Explain how to connect to PostgreSQL using Npgsql.
+1. **Motos Table:**
 
-<h2>TODO: Project Organization:</h2>
+   - **IDENTIFICADOR** (VARCHAR, PRIMARY KEY): Unique identifier for each motorcycle.
+   - **ANO**(INT): Year of the motorcycle.
+   - **MODELO** (VARCHAR): Model of the motorcycle.
+   - **PLACA** (VARCHAR, UNIQUE): License plate number.
+
+2. **Entregador Table:**
+
+   - **IDENTIFICADOR** (VARCHAR, PRIMARY KEY): Unique identifier for each delivery person.
+   - **NOME**(VARCHAR): Name og the delivery person.
+   - **CNPJ** (VARCHAR, UNIQUE): Unique identification number.
+   - **DATA_NASCIMENTO** (TIMESTAMP): Date of birthday.
+   - **NUMERO_CNH** (VARCHAR, UNIQUE): Driver's license number.
+   - **TIPO_CNH** (VARCHAR): Type/category of driver's licence.
+   - **IMAGEM_CNH** (VARCHAR): Path to the driver's licence image.
+
+3. **Locacoes Table:**
+
+   - **IDENTIFICADOR** (VARCHAR, PRIMARY KEY): Unique identifier for each rental. Default is `locacao` + sequence.
+   - **ENTREGADOR_ID** (VARCHAR, FOREING KEY): References `IDENTIFICADOR` in the `Entregadores` table.
+   - **MOTO_ID** (VARCHAR, FOREING KEY): References `IDENTIFICADOR` in the `Motos` table.
+   - **DATA_INICIO** (TIMESTAMP): Start date and time of the rental.
+   - **DATA_TERMINO** (TIMESTAMP): End data and time of the rental.
+   - **DATA_PREVISAO_TERMINO** (TIMESTAMP): Expected end data and time of the rental.
+   - **PLANO** (INTEGER): Plan code for the rental.
+   - **VALOR_PLANO** (REAL): Daily cost of the plan.
+   - **DATA_DEVOLUCAO** (TIMESTAMP, NULLABLE): Actual return date and time.
+   - **Relationships:**
+     - `Motos` and `Entregadores` tables are referenced by the `Locacoes` table through foreign key.
+     - A sequence, `locacoes_identificador_seq`, generates identifiers for `Locacoes`.
+
+**Datagram:**
+
+A simplified representation:
+
+```table
+Entregadores                      Motos
++----------------------+   +-------------------+
+| IDENTIFICADOR (PK)   |   | IDENTIFICADOR (PK)|
+| NOME                 |   | ANO               |
+| CNPJ (Unique)        |   | MODELO            |
+| DATA_NASCIMENTO      |   | PLACA (Unique)    |
+| NUMERO_CNH (Unique)  |   +-------------------+
+| TIPO_CNH             |
+| IMAGEM_CNH           |
++----------------------+
+        |
+        | References
+        v
+    Locacoes
++-------------------------------+
+| IDENTIFICADOR (PK, Sequence)  |
+| ENTREGADOR_ID (FK)            |
+| MOTO_ID (FK)                  |
+| DATA_INICIO                   |
+| DATA_TERMINO                  |
+| DATA_PREVISAO_TERMINO         |
+| PLANO                         |
+| VALOR_PLANO                   |
+| DATA_DEVOLUCAO                |
++-------------------------------+
+```
+
+**Connection Configuration:**
+
+To connect to PostgreSQL using Npgsql:
+
+1.  **Connection String:**
+
+    - Use a connection string to define how the application connection connects to PostgreSQL:
+
+      ```csharp
+      ststring connectionString = "Host=localhost;Port=5432;Database=motoDB;Username=postgres;Password=1234";
+      ```
+
+2.  **Creating a Connection:**
+
+    - Initialize and open a connection:
+
+      ```csharp
+      using Npgsql;
+
+      _conexaoString = "Host=localhost;Port=5432;Database=motoDB;Username=postgres;Password=1234";
+
+      var conexao = new NpgsqlConnection(connectionString);
+      conexao.Open();
+      ```
+
+3.  **Executing SQL Commands:**
+
+    - Use `NpgsqlCommand` to execute queries:
+
+      ```csharp
+      string query = "SELECT * FROM Motos";
+
+      var comando = new NpgsqlCommand(query, conexao);
+      var leitor = comando.ExecuteReader();
+
+      while (leitor.Read())
+      {
+        Console.WriteLine($"Model: {leitor["MODELO"]}, Year: {leitor["ANO"]}");
+      }
+      ```
+
+4.  **Handling Exceptions:**
+
+    - Wrap connections in `try-catch` blocks to handle erros:
+
+      ```csharp
+      try
+      {
+        using var conexao = new NpgsqlConnection(_conexaoString);
+        conexao.Open();
+
+        Console.WriteLine("Connection successful.");
+      }
+      catch (Exception ex)
+      {
+        Console.WriteLine($"Error: {ex.Message}");
+      }
+      ```
+
+<h2>Project Organization:</h2>
+
+```bash
+Desafio-Backend:.
+│   .gitignore
+│   appsettings.Development.json
+│   appsettings.json
+│   Desafio-Backend.csproj
+│   Desafio-Backend.http
+│   Desafio-BackEnd.sln
+│   DOCUMENTATION.md
+│   Program.cs
+│   README.md
+│
+├───imagens_entregadores
+│
+├───Properties
+│       launchSettings.json
+│
+└───src
+    ├───Models
+    │       EntregadoresData.cs
+    │       LocacaoData.cs
+    │       MotoData.cs
+    │
+    └───Services
+            DataBase.cs
+            Publisher.cs
+            Subscriber.cs
+```
+
+- **imagens_entregadores:** Includes image files linked to registered delivery personnel.
+
+- **src:** Includes the core project components, structured in subdirectories:
+
+  - **Models:** Define the data classes and the structure of the types of data.
+
+    - **MotoData.cs:** Template for motorcycle data, including year, model, and license plate.
+
+    - **EntregadoresData.cs:** Model for data associated with delivery personnel, including name, CNPJ, and driver's license.
+
+    - **LocacaoData.cs:** Template for rental data, including delivery person, motorcycle, and dates.
+
+  - **Services:** Includes service classes that offer business logic and integration with external systems.
+
+    - **DataBase.cs:** Class for managing database connections and creating tables, sequences, and relations.
+
+    - **Publisher.cs:** Implementing message publishing on RabbitMQ
+
+    - **Subscriber.cs:** RabbitMQ message subscription and consumption implementation
