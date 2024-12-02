@@ -22,8 +22,6 @@ class Program
 
         app.UseHttpsRedirection();
 
-        Console.WriteLine("Chegou antes de entrar no sub...");
-
         _ = Task.Run(() => ExecutaSubscriber());
 
         ConfiguraRotasAPI(app);
@@ -55,9 +53,6 @@ class Program
                return Results.BadRequest(new { mensagem = "Dados inválidos" });
 
            var lista_motos = await publisher.PublisherGetMotos(placa);
-
-           Console.WriteLine("SAIU");
-           Console.WriteLine(lista_motos);
 
            return Results.Ok(lista_motos);
        })
@@ -168,10 +163,8 @@ class Program
 
     private static void ExecutaSubscriber()
     {
-        Console.WriteLine("Está começando o sub!!!");
         var subscriber = new Subscriber();
 
-        Console.WriteLine("Entou no escutando fila do sub!!!");
         _ = subscriber.EscutandoFila();
     }
 }

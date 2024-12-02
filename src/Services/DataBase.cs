@@ -18,13 +18,8 @@ namespace Services.DataBase
         {
             this._conexaoString = "Host=localhost;Port=5432;Database=motoDB;Username=postgres;Password=1234";
 
-            Console.WriteLine("Abrindo conexao");
-
             var conexao = new NpgsqlConnection(this._conexaoString);
             conexao.Open();
-
-            Console.WriteLine("Criando sequencia...");
-
 
             string criaSequenciaIdentificadorLocacoesQuery = @"
                 CREATE SEQUENCE IF NOT EXISTS locacoes_identificador_seq START 1;
@@ -32,9 +27,6 @@ namespace Services.DataBase
 
             var comando = new NpgsqlCommand(criaSequenciaIdentificadorLocacoesQuery, conexao);
             comando.ExecuteNonQuery();
-
-            Console.WriteLine("Sequencia criando...");
-
 
             string criaTabelaMotosQuery = @"
                 CREATE TABLE IF NOT EXISTS Motos (
@@ -45,7 +37,6 @@ namespace Services.DataBase
                 );
             ";
 
-            Console.WriteLine("Tabela motos criada");
             comando = new NpgsqlCommand(criaTabelaMotosQuery, conexao);
             comando.ExecuteNonQuery();
 
@@ -61,7 +52,6 @@ namespace Services.DataBase
                 );
             ";
 
-            Console.WriteLine("Tabela entregadores criada");
             comando = new NpgsqlCommand(criaTabelaEntregadoresQuery, conexao);
             comando.ExecuteNonQuery();
 
@@ -82,11 +72,12 @@ namespace Services.DataBase
                 );
             ";
 
-            Console.WriteLine("Tabela locacoes criada");
             comando = new NpgsqlCommand(criaTabelaLotacaoQuery, conexao);
             comando.ExecuteNonQuery();
 
             conexao.Close();
+
+            Console.WriteLine("[DATABASE] PRONTO...");
         }
 
         public static DataBase GetInstanceDataBase()
@@ -148,7 +139,7 @@ namespace Services.DataBase
         {
             CriaPastaDeImagensEntregadores();
 
-            string nome_arquivo = $"{entregador_id}.jpg";
+            string nome_arquivo = $"{entregador_id}.png";
             string nome_pasta = Path.Combine(_diretorio_completo, nome_arquivo);
 
             System.IO.File.WriteAllBytes(nome_pasta, imagem_cnh);
@@ -227,7 +218,7 @@ namespace Services.DataBase
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Erro no banco de dados ao pegar moto usando a placa: {e.Message}");
+                Console.WriteLine($"[DATABASE] Erro: Ao pegar moto usando a placa: {e.Message}");
             }
 
             return motos_lista;
@@ -257,7 +248,7 @@ namespace Services.DataBase
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Erro no banco de dados ao atualizar a placa da moto: {e.Message}");
+                Console.WriteLine($"[DATABASE] Erro: Ao atualizar a placa da moto: {e.Message}");
 
                 return false;
             }
@@ -304,7 +295,7 @@ namespace Services.DataBase
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Erro no banco de dados ao pegar moto usando o ID: {e.Message}");
+                Console.WriteLine($"[DATABASE] Erro: Ao pegar moto usando o ID: {e.Message}");
 
                 return null;
             }
@@ -332,7 +323,7 @@ namespace Services.DataBase
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Erro no banco de dados ao deletar moto usando o ID: {e.Message}");
+                Console.WriteLine($"[DATABASE] Erro: Ao deletar moto usando o ID: {e.Message}");
 
                 return false;
             }
@@ -403,7 +394,7 @@ namespace Services.DataBase
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Erro no banco de dados ao adicionar novo entregador: {e.Message}");
+                Console.WriteLine($"[DATABASE] Erro: Ao adicionar novo entregador: {e.Message}");
 
                 return false;
             }
@@ -444,7 +435,7 @@ namespace Services.DataBase
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Erro no banco de dados ao cadastrar foto do entregador: {e.Message}");
+                Console.WriteLine($"[DATABASE] Erro: Ao cadastrar foto do entregador: {e.Message}");
 
                 return false;
             }
@@ -492,7 +483,7 @@ namespace Services.DataBase
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Erro no banco de dados ao pegar entregador usando o ID: {e.Message}");
+                Console.WriteLine($"[DATABASE] Erro: Ao pegar entregador usando o ID: {e.Message}");
 
                 return null;
             }
@@ -506,13 +497,13 @@ namespace Services.DataBase
 
                 if (entregador == null)
                     return false;
-                else if (entregador.tipo_cnh.ToLower() == "a" || entregador.tipo_cnh.ToLower() == "ab" || entregador.tipo_cnh.ToLower() == "a+b")
-                    return false;
+                else if (entregador.tipo_cnh.ToLower() == "b")
+                { return false; }
 
                 DateTime data = DateTime.Parse(locacao.data_inicio, null, System.Globalization.DateTimeStyles.RoundtripKind);
                 DateTime dataMaisUmDia = data.AddDays(1);
 
-                string novaDataMaisUmDia = dataMaisUmDia.ToString("yyyy-MM-ddTHH:mm:ssZ");
+                string novaDataMaisUmDia = dataMaisUmDia.ToString(_formato);
 
                 var conexao = new NpgsqlConnection(this._conexaoString);
                 conexao.Open();
@@ -538,7 +529,7 @@ namespace Services.DataBase
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Erro no banco de dados ao cadastrar nova locacao: {e.Message}");
+                Console.WriteLine($"[DATABASE] Erro: Ao cadastrar uma nova locacção: {e.Message}");
 
                 return false;
             }
@@ -599,7 +590,7 @@ namespace Services.DataBase
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Erro no banco de dados ao consultar uma locacao: {e.Message}");
+                Console.WriteLine($"[DATABASE] Erro: Ao consultar uma locação: {e.Message}");
             }
 
             return null;
@@ -658,7 +649,7 @@ namespace Services.DataBase
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Erro no banco de dados ao pegar todas as informações de locação: {e.Message}");
+                Console.WriteLine($"[DATABASE] Erro: Ao pegar todas as informações de locação: {e.Message}");
             }
 
             return null;
@@ -705,9 +696,6 @@ namespace Services.DataBase
 
         public bool PutLocacao(string id, string data_devolucao)
         {
-            Console.WriteLine(id);
-            Console.WriteLine(data_devolucao);
-
             try
             {
                 var conexao = new NpgsqlConnection(this._conexaoString);
@@ -736,6 +724,8 @@ namespace Services.DataBase
                         return false;
 
                     float valor_total = CalculaValorTotal(locacao.plano, locacao.valor_diaria, locacao.data_inicio, locacao.data_devolucao, locacao.data_previsao_termino);
+
+                    Console.WriteLine($"[DATABASE] Total a pagar pelo entregador: {valor_total}");
                 }
                 else
                     return false;
@@ -744,7 +734,7 @@ namespace Services.DataBase
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Erro no banco de dados ao alterar data de devolução de uma locação: {e.Message}");
+                Console.WriteLine($"[DATABASE] Erro: Ao alterar data de devolução de uma locação: {e.Message}");
             }
 
             return false;

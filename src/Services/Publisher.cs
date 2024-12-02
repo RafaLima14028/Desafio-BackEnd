@@ -100,12 +100,7 @@ namespace Services.Publisher
             {
                 try
                 {
-                    Console.WriteLine("Mensagem recebida no pub.");
-
                     var resposta = Encoding.UTF8.GetString(ea.Body.ToArray());
-                    Console.WriteLine("Resposta do sub no pub");
-                    Console.WriteLine(resposta);
-                    Console.WriteLine();
 
                     this._tcs.TrySetResult(resposta);
                 }
@@ -150,7 +145,7 @@ namespace Services.Publisher
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Problema no pub ao envia uma nova moto: {e.Message}");
+                Console.WriteLine($"[PUBLISHER] Erro: Ao envia uma nova moto: {e.Message}");
             }
         }
 
@@ -162,10 +157,7 @@ namespace Services.Publisher
                 await this.AbreConexaoResposta();
 
                 if (this._channel == null || this._channel_response == null)
-                {
-                    Console.WriteLine("algum canal == null");
                     return new List<Moto>();
-                }
 
                 var mensagem = JsonSerializer.Serialize(new
                 {
@@ -173,41 +165,23 @@ namespace Services.Publisher
                     funcao = "getMotos"
                 });
 
-                Console.WriteLine(mensagem);
-
                 var body = Encoding.UTF8.GetBytes(mensagem);
-
-                Console.WriteLine("PUB ENVIANDO");
 
                 await this.EnviaMensagem(this._channel, body);
 
-                Console.WriteLine("PUB ENVIOU MENSAGEM");
-
                 string resposta = await EsperaResposta();
-
-                Console.WriteLine("PUB SERIALIZANDO JSON");
 
                 List<Moto>? motos = JsonSerializer.Deserialize<List<Moto>>(resposta);
 
-                Console.WriteLine("PUB SERIALIZOU JSON");
-                Console.WriteLine("SAINDO DO PUB");
-
                 if (motos == null)
-                {
-                    Console.WriteLine("Motos == null no pub");
                     motos = new List<Moto>();
-                }
-
-                Console.WriteLine(motos);
 
                 return motos;
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Problema no pub ao consultar uma moto com a placa: {e.Message}");
+                Console.WriteLine($"[PUBLIHSER] Erro: Ao consultar uma moto com a placa: {e.Message}");
             }
-
-            Console.WriteLine("SAINDO DO PUB");
 
             return new List<Moto>();
         }
@@ -234,7 +208,7 @@ namespace Services.Publisher
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Problema no pub ao modificar a placa de uma moto: {e.Message}");
+                Console.WriteLine($"[PUBLISHER] Erro: Ao modificar a placa de uma moto: {e.Message}");
             }
         }
 
@@ -266,7 +240,7 @@ namespace Services.Publisher
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Problema no pub ao consultar uma moto pelo ID: {e.Message}");
+                Console.WriteLine($"[PUBLISHER] Erro: Ao consultar uma moto pelo ID: {e.Message}");
             }
 
             return null;
@@ -293,7 +267,7 @@ namespace Services.Publisher
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Problema no pub ao remover uma moto: {e.Message}");
+                Console.WriteLine($"[PUBLIHSER] Erro: Ao remover uma moto: {e.Message}");
             }
         }
 
@@ -324,7 +298,7 @@ namespace Services.Publisher
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Problema no pub ao cadastrar um entregador: {e.Message}");
+                Console.WriteLine($"[PUBLIHSER] Erro: Ao cadastrar um entregador: {e.Message}");
             }
         }
 
@@ -350,7 +324,7 @@ namespace Services.Publisher
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Problema no pub ao enviar foto da CNH do entregador: {e.Message}");
+                Console.WriteLine($"[PUBLIHSER] Erro: Ao enviar foto da CNH do entregador: {e.Message}");
             }
         }
 
@@ -380,7 +354,7 @@ namespace Services.Publisher
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Problema no pub ao criar uma locação: {e.Message}");
+                Console.WriteLine($"[PUBLIHSER] Erro: Ao criar uma nova locação: {e.Message}");
             }
         }
 
@@ -412,7 +386,7 @@ namespace Services.Publisher
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Problema no pub ao consultar uma locação pelo ID: {e.Message}");
+                Console.WriteLine($"[PUBLIHSER] Erro: Ao consultar uma locação pelo ID: {e.Message}");
             }
 
             return null;
@@ -440,7 +414,7 @@ namespace Services.Publisher
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Problema no pub ao informar data de devolução e cálculo do valor: {e.Message}");
+                Console.WriteLine($"[PUBLISHER] Erro: Ao informar data de devolução e cálculo do valor: {e.Message}");
             }
         }
     }

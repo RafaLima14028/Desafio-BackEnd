@@ -23,8 +23,6 @@ namespace Services.Subscriber
 
         public Subscriber()
         {
-            Console.WriteLine("Entrou no construtor do sub");
-
             try
             {
                 this._connectionFactory = new ConnectionFactory
@@ -32,15 +30,11 @@ namespace Services.Subscriber
                     HostName = "localhost"
                 };
 
-                Console.WriteLine("Carregando db do sub");
-
                 this._dataBase = DataBase.DataBase.GetInstanceDataBase();
-
-                Console.WriteLine("Sub inicializado corretamente");
             }
             catch (Exception e)
             {
-                throw new Exception("[SUBSCRIBER] Erro na inicialização do Subscriber do barramento:", e);
+                throw new Exception($"[SUBSCRIBER] Erro: Na inicialização: {e.Message}");
             }
         }
 
@@ -91,25 +85,19 @@ namespace Services.Subscriber
 
             try
             {
-                Console.WriteLine("ENTRANDO NO SUB");
-
                 var consumer = new AsyncEventingBasicConsumer(this._channel);
 
-                Console.WriteLine("CRIANDO O CONSUMER NO SUB");
                 consumer.ReceivedAsync += async (model, ea) =>
                 {
                     Console.WriteLine("[SUBSCRIBER] MENSAGEM RECEBIDA.");
 
                     var body = ea.Body.ToArray();
                     var mensagem = Encoding.UTF8.GetString(body);
-                    // Console.WriteLine(mensagem);
 
                     var jsonDoc = JsonDocument.Parse(mensagem);
 
                     await ProcessaMensagens(jsonDoc);
                 };
-
-                Console.WriteLine("INICIA A ESCUTA DA FILA NO SUB");
 
                 await this._channel.BasicConsumeAsync(
                     queue: _nome_fila,
@@ -119,10 +107,8 @@ namespace Services.Subscriber
             }
             catch (Exception e)
             {
-                Console.WriteLine($"[SUBSCRIBER] Problema no sub escutando a fila: {e.Message}");
+                Console.WriteLine($"[SUBSCRIBER] Erro: No escutando a fila: {e.Message}");
             }
-
-            Console.WriteLine("SAINDO DO SUB");
         }
 
         private JsonObject? TransformaRemoveCampoETransformaEmJson(JsonElement root)
@@ -239,9 +225,6 @@ namespace Services.Subscriber
             string mensagem_resposta = "";
             List<Moto> motos = this._dataBase.GetMotos(placa);
 
-            Console.WriteLine("Situação motos [sub]:");
-            Console.WriteLine(motos.ToString());
-
             if (motos == null)
             {
                 List<Moto> motos_vazia = new List<Moto>();
@@ -252,18 +235,11 @@ namespace Services.Subscriber
                 mensagem_resposta = JsonSerializer.Serialize(motos);
             }
 
-            Console.WriteLine("ENVIANDO RESPOSTA [SUB]");
-
-            Console.WriteLine(mensagem_resposta);
-            Console.WriteLine();
-
             await this._channel_response.BasicPublishAsync(
                     exchange: string.Empty,
                     routingKey: _nome_fila_respostas,
                     body: Encoding.UTF8.GetBytes(mensagem_resposta)
                 );
-
-            Console.WriteLine("Mensagem encaminada. [SUB]");
         }
 
         private void PutMotos(JsonObject jsonObject)
@@ -392,8 +368,6 @@ namespace Services.Subscriber
             LocacaoRetorno? locacao = this._dataBase.GetLocacao(identificador);
 
             var mensagem_resposta = JsonSerializer.Serialize(locacao);
-
-            Console.WriteLine(mensagem_resposta);
 
             await this._channel_response.BasicPublishAsync(
                 exchange: string.Empty,
